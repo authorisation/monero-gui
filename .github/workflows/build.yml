@@ -10,37 +10,48 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: install dependencies
       run: HOMEBREW_NO_AUTO_UPDATE=1 brew install boost hidapi openssl zmq libpgm libsodium miniupnpc expat libunwind-headers protobuf qt6 pkg-config
+    - name: link boost
+      run: brew link boost --force
     - name: build
-      run: DEV_MODE=ON make release -j"$(sysctl -n hw.ncpu)"
+      run: |
+        export BOOST_ROOT=/opt/homebrew/Cellar/boost/1.90.0_1
+        export BOOST_INCLUDEDIR=$BOOST_ROOT/include
+        export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
+        DEV_MODE=ON make release -j"$(sysctl -n hw.ncpu)"
     - name: test qml
       run: build/release/bin/monero-wallet-gui.app/Contents/MacOS/monero-wallet-gui --test-qml
 
   build-ubuntu:
     runs-on: ubuntu-latest
+    container: 
+      image: ubuntu:25.10
     steps:
-    - uses: actions/checkout@v1
+    - name: update apt
+      run: | 
+        apt update
+        apt install git -y
+    - name: checkout
+      uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: remove bundled boost
-      run: sudo rm -rf /usr/local/share/boost
+      run: rm -rf /usr/local/share/boost
     - name: set apt conf
       run: |
-        echo "Acquire::Retries \"3\";" | sudo tee -a /etc/apt/apt.conf.d/80-custom
-        echo "Acquire::http::Timeout \"120\";" | sudo tee -a /etc/apt/apt.conf.d/80-custom
-        echo "Acquire::ftp::Timeout \"120\";" | sudo tee -a /etc/apt/apt.conf.d/80-custom
-    - name: update apt
-      run: sudo apt update
+        echo "Acquire::Retries \"3\";" | tee -a /etc/apt/apt.conf.d/80-custom
+        echo "Acquire::http::Timeout \"120\";" | tee -a /etc/apt/apt.conf.d/80-custom
+        echo "Acquire::ftp::Timeout \"120\";" | tee -a /etc/apt/apt.conf.d/80-custom
     - name: install monero dependencies
-      run: sudo apt -y install build-essential cmake libboost-all-dev miniupnpc libunbound-dev graphviz doxygen libunwind8-dev pkg-config libssl-dev libzmq3-dev libsodium-dev libhidapi-dev libnorm-dev libusb-1.0-0-dev libpgm-dev libprotobuf-dev protobuf-compiler
+      run: apt -y install build-essential cmake libboost-all-dev miniupnpc libunbound-dev graphviz doxygen libunwind8-dev pkg-config libssl-dev libzmq3-dev libsodium-dev libhidapi-dev libnorm-dev libusb-1.0-0-dev libpgm-dev libprotobuf-dev protobuf-compiler
     - name: install monero gui dependencies
-      run: sudo apt -y install qt6-base-dev qt6-declarative-dev qml6-module-qtqml-models qml6-module-qtquick-controls qml6-module-qtquick-dialogs qml6-module-qtqml-xmllistmodel qml6-module-qt-labs-settings qml6-module-qtquick-effects qml6-module-qt-labs-platform qml6-module-qt-labs-folderlistmodel qt6-tools-dev-tools qt6-tools-dev qml6-module-qtquick-templates libqt6svg6-dev libgcrypt20-dev xvfb qml6-module-qtqml-workerscript qml6-module-qtquick-layouts qml6-module-qtcore
+      run: apt -y install qt6-base-dev qt6-declarative-dev qml6-module-qtqml-models qml6-module-qtquick-controls qml6-module-qtquick-dialogs qml6-module-qtqml-xmllistmodel qml6-module-qt-labs-settings qml6-module-qtquick-effects qml6-module-qt-labs-platform qml6-module-qt-labs-folderlistmodel qt6-tools-dev-tools qt6-tools-dev qml6-module-qtquick-templates libqt6svg6-dev libgcrypt20-dev xvfb qml6-module-qtqml-workerscript qml6-module-qtquick-layouts qml6-module-qtcore
     - name: build
-      run: y make release -j"$(nproc)"
+      run: make release -j"$(nproc)"
     - name: test qml
       run: xvfb-run -a build/release/bin/monero-wallet-gui --test-qml
 
@@ -50,9 +61,9 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - uses: eine/setup-msys2@v2
       with:
         update: true
@@ -68,9 +79,9 @@ jobs:
   macos-bundle:
     runs-on: macos-15
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: install dependencies
       run: HOMEBREW_NO_AUTO_UPDATE=1 brew install boost hidapi openssl zmq libpgm miniupnpc expat libunwind-headers protobuf pkg-config
     - name: clone qt repo
@@ -103,15 +114,25 @@ jobs:
   docker-linux-static:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: install dependencies
       run: sudo apt -y install xvfb libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xkb1 libxcb-shape0 libxkbcommon-x11-0 libopengl0 libegl-dev
     - name: free up diskspace
       run: ${{env.FREE_DISKSPACE}}
-    - name: prepare build environment
-      run: docker build --tag monero:build-env-linux --build-arg THREADS=3 --file Dockerfile.linux .
+    - name: set up docker buildx
+      uses: docker/setup-buildx-action@v4
+    - name: build and cache image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        file: ./Dockerfile.linux
+        tags: monero:build-env-linux
+        build-args: THREADS=3
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        load: true
     - name: build
       run: docker run --rm -v /home/runner/work/monero-gui/monero-gui:/monero-gui -w /monero-gui monero:build-env-linux sh -c 'make release-static -j3'
     - name: sha256sum
@@ -128,13 +149,23 @@ jobs:
   docker-windows-static:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: free up diskspace
       run: ${{env.FREE_DISKSPACE}}
-    - name: prepare build environment
-      run: docker build --tag monero:build-env-windows --build-arg THREADS=3 --file Dockerfile.windows .
+    - name: set up docker buildx
+      uses: docker/setup-buildx-action@v4
+    - name: build and cache image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        file: ./Dockerfile.windows
+        tags: monero:build-env-windows
+        build-args: THREADS=3
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        load: true
     - name: build
       run: docker run --rm -v /home/runner/work/monero-gui/monero-gui:/monero-gui -w /monero-gui -e THREADS=2 monero:build-env-windows
     - name: sha256sum
@@ -149,13 +180,23 @@ jobs:
   docker-android:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: free up diskspace
       run: ${{env.FREE_DISKSPACE}}
-    - name: prepare build environment
-      run: docker build --tag monero:build-env-android --build-arg THREADS=3 --file Dockerfile.android .
+    - name: set up docker buildx
+      uses: docker/setup-buildx-action@v4
+    - name: build and cache image
+      uses: docker/build-push-action@v7
+      with:
+        context: .
+        file: ./Dockerfile.android
+        tags: monero:build-env-android
+        build-args: THREADS=3
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        load: true
     - name: build
       run: docker run --rm -v /home/runner/work/monero-gui/monero-gui:/monero-gui -e THREADS=3 monero:build-env-android
     - uses: actions/upload-artifact@v4
@@ -166,9 +207,9 @@ jobs:
   source-archive:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v1
+    - uses: actions/checkout@v6
       with:
-        submodules: recursive
+        submodules: 'recursive'
     - name: archive
       run: |
         pip install git-archive-all
