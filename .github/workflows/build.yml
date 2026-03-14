@@ -19,7 +19,7 @@ jobs:
       run: brew link boost --force
     - name: build
       run: |
-        export BOOST_ROOT=$(brew --prefix boost)
+        export BOOST_ROOT=/opt/homebrew/Cellar/boost/1.90.0_1
         export BOOST_INCLUDEDIR=$BOOST_ROOT/include
         export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
         DEV_MODE=ON make release -j"$(sysctl -n hw.ncpu)"
