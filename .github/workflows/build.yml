@@ -15,8 +15,14 @@ jobs:
         submodules: recursive
     - name: install dependencies
       run: HOMEBREW_NO_AUTO_UPDATE=1 brew install boost hidapi openssl zmq libpgm libsodium miniupnpc expat libunwind-headers protobuf qt6 pkg-config
+    - name: link boost
+      run: brew link boost --force
     - name: build
-      run: DEV_MODE=ON make release -j"$(sysctl -n hw.ncpu)"
+      run: |
+        export BOOST_ROOT=$(brew --prefix boost)
+        export BOOST_INCLUDEDIR=$BOOST_ROOT/include
+        export BOOST_LIBRARYDIR=$BOOST_ROOT/lib
+        DEV_MODE=ON make release -j"$(sysctl -n hw.ncpu)"
     - name: test qml
       run: build/release/bin/monero-wallet-gui.app/Contents/MacOS/monero-wallet-gui --test-qml
 
@@ -33,6 +39,7 @@ jobs:
         echo "Acquire::Retries \"3\";" | sudo tee -a /etc/apt/apt.conf.d/80-custom
         echo "Acquire::http::Timeout \"120\";" | sudo tee -a /etc/apt/apt.conf.d/80-custom
         echo "Acquire::ftp::Timeout \"120\";" | sudo tee -a /etc/apt/apt.conf.d/80-custom
+        sudo bash -c 'echo "deb http://archive.ubuntu.com/ubuntu plucky universe" >> /etc/apt/sources.list'
     - name: update apt
       run: sudo apt update
     - name: install monero dependencies
