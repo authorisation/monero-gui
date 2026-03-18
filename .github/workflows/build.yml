@@ -10,7 +10,7 @@ jobs:
   build-macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: install dependencies
@@ -31,7 +31,7 @@ jobs:
     container: 
       image: ubuntu:25.10
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: remove bundled boost
@@ -58,7 +58,7 @@ jobs:
       run:
         shell: msys2 {0}
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - uses: eine/setup-msys2@v2
@@ -76,7 +76,7 @@ jobs:
   macos-bundle:
     runs-on: macos-15
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: install dependencies
@@ -111,7 +111,7 @@ jobs:
   docker-linux-static:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: install dependencies
@@ -146,7 +146,7 @@ jobs:
   docker-windows-static:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: free up diskspace
@@ -177,7 +177,7 @@ jobs:
   docker-android:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: free up diskspace
@@ -204,7 +204,7 @@ jobs:
   source-archive:
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v1
       with:
         submodules: recursive
     - name: archive
